@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OnClick AI</title>
+<style>
+:root{
+  --bg:#0b0c10; --bg2:#111318; --card:#16181f; --line:#23262f; --fg:#eceef3; --mute:#8a90a0;
+  --acc:#7c5cff; --acc2:#38bdf8; --ok:#34d399; --warn:#fbbf24; --err:#f87171; --r:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:14.5px/1.55 "Segoe UI Variable","Segoe UI",Inter,system-ui,sans-serif;background:var(--bg);color:var(--fg);overflow:hidden;
+  background-image:radial-gradient(1200px 600px at 80% -10%,rgba(124,92,255,.16),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(56,189,248,.10),transparent 60%)}
+.app{display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);backdrop-filter:blur(12px);background:rgba(11,12,16,.6)}
+.logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-weight:800;font-size:15px;box-shadow:0 4px 18px rgba(124,92,255,.45)}
+.brand{font-weight:650;font-size:16px;letter-spacing:.2px}
+.pill{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mute);background:var(--bg2);border:1px solid var(--line);padding:5px 11px;border-radius:999px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.dot.busy{background:var(--acc2);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.spacer{flex:1}
+.ibtn{background:transparent;border:1px solid var(--line);color:var(--fg);height:34px;padding:0 12px;border-radius:10px;cursor:pointer;font:inherit;font-size:13px;display:flex;align-items:center;gap:6px}
+.ibtn:hover{background:var(--card)}
+main{flex:1;overflow-y:auto;scroll-behavior:smooth}
+.feed{max-width:820px;margin:0 auto;padding:28px 22px 40px}
+.hero{text-align:center;padding:9vh 0 26px}
+.hero h1{font-size:34px;font-weight:700;letter-spacing:-.5px;background:linear-gradient(90deg,#fff,#c9c2ff 60%,#9fdcff);-webkit-background-clip:text;color:transparent}
+.hero p{color:var(--mute);margin-top:8px}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:28px;text-align:left}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--acc);transform:translateY(-1px)}
+.chip b{display:block;font-weight:600;margin-bottom:3px}
+.chip span{color:var(--mute);font-size:13px}
+.msg{margin:18px 0;display:flex}
+.msg.user{justify-content:flex-end}
+.bubble{max-width:78%;padding:11px 15px;border-radius:var(--r);white-space:pre-wrap;word-wrap:break-word}
+.user .bubble{background:linear-gradient(135deg,var(--acc),#5b8cff);border-bottom-right-radius:5px}
+.ai{gap:12px;align-items:flex-start}
+.ai .avatar{flex:0 0 28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:2px}
+.ai .body{flex:1;min-width:0}
+.ai .text{white-space:pre-wrap;word-wrap:break-word}
+.steps{margin:8px 0;border:1px solid var(--line);background:var(--bg2);border-radius:14px;overflow:hidden}
+.steps summary{list-style:none;cursor:pointer;padding:10px 14px;color:var(--mute);font-size:13px;display:flex;gap:8px;align-items:center}
+.steps summary::-webkit-details-marker{display:none}
+.steps[open] summary{border-bottom:1px solid var(--line)}
+.step{display:flex;gap:10px;padding:9px 14px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.03)}
+.step:last-child{border-bottom:0}
+.step .ic{flex:0 0 22px;height:22px;border-radius:6px;background:var(--card);display:grid;place-items:center;font-size:12px}
+.step .nm{font-weight:600}
+.step .rs{color:var(--mute);font-family:Consolas,ui-monospace,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;margin-top:2px}
+.step.warn .ic{background:rgba(251,191,36,.15)}
+.shot{margin-top:8px;max-width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in}
+.file{display:inline-flex;gap:6px;align-items:center;margin:6px 6px 0 0;padding:5px 10px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-size:12.5px;cursor:pointer;color:var(--acc2)}
+.done{color:var(--ok);font-size:12.5px;margin-top:6px}
+.err{color:var(--err)}
+.typing span{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--mute);animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:none;opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+footer{padding:14px 22px 20px}
+.composer{max-width:820px;margin:0 auto;display:flex;align-items:flex-end;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:10px 10px 10px 16px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.composer:focus-within{border-color:#3a3550}
+textarea{flex:1;background:transparent;border:0;outline:0;color:var(--fg);font:inherit;font-size:15px;resize:none;max-height:180px;padding:6px 0}
+.send{width:40px;height:40px;border-radius:12px;border:0;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:17px;display:grid;place-items:center}
+.mic{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);cursor:pointer;background:var(--card);color:#fff;font-size:17px;display:grid;place-items:center;position:relative}
+.mic.on{background:#e5484d;border-color:#e5484d;animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.6)}70%{box-shadow:0 0 0 12px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+.lang{background:var(--card);color:#cfd0dc;border:1px solid var(--line);border-radius:10px;height:40px;padding:0 8px;font-size:13px}
+.vbar{max-width:820px;margin:6px auto 0;height:4px;border-radius:2px;overflow:hidden}
+.vbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .08s}
+.vtag{font-size:11px;opacity:.7;margin-bottom:4px}
+.send.stop{background:var(--card);border:1px solid var(--line)}
+.hint{max-width:820px;margin:8px auto 0;color:var(--mute);font-size:12px;text-align:center}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:10}
+.ov.show{display:flex}
+.modal{width:min(520px,92vw);background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h3{font-size:17px;margin-bottom:6px}
+.modal p{color:var(--mute);margin-bottom:14px;white-space:pre-wrap}
+.modal pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;max-height:180px;overflow:auto;white-space:pre-wrap;margin-bottom:14px}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.btn{height:38px;padding:0 16px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:inherit;cursor:pointer}
+.btn.pri{background:linear-gradient(135deg,var(--acc),#5b8cff);border:0}
+.btn.danger{background:var(--warn);color:#111;border:0}
+label{display:block;font-size:12.5px;color:var(--mute);margin:12px 0 5px}
+input,select{width:100%;height:38px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--fg);padding:0 12px;font:inherit}
+.check{display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--mute);font-size:13px}
+.check input{width:auto;height:auto}
+.small{font-size:12px;color:var(--mute);margin-top:6px}
+.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#262935;border-radius:10px;border:3px solid var(--bg)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">O</div><div class="brand">OnClick AI</div>
+    <div class="pill"><span class="dot" id="dot"></span><span id="status">Ready</span></div>
+    <div class="spacer"></div>
+    <button class="ibtn" onclick="newChat()">＋ New chat</button>
+    <button class="ibtn" onclick="openSettings()">⚙ Settings</button>
+  </header>
+  <main id="main"><div class="feed" id="feed">
+    <div class="hero" id="hero">
+      <h1>What should I do for you?</h1>
+      <p>Speak or type a task in Kannada, Hinglish, Hindi, Tamil, Telugu or English. I'll open the apps, browse, click and build it on this PC.</p>
+      <div class="chips">
+        <div class="chip" onclick="useChip(this)"><b>🎙 ಕನ್ನಡ</b><span>Downloads folder alli iro PDF ella ondu folder ge haaki</span></div>
+        <div class="chip" onclick="useChip(this)"><b>🎙 Hinglish</b><span>Chrome kholo aur YouTube pe lo-fi music chalao</span></div>
+        <div class="chip" onclick="useChip(this)"><b>✈️ Find a flight</b><span>Cheapest Bengaluru → Delhi flight next Friday, take me to checkout</span></div>
+        <div class="chip" onclick="useChip(this)"><b>🏠 3D house in Blender</b><span>Build a modern two-storey house in Blender and render it at sunset</span></div>
+        <div class="chip" onclick="useChip(this)"><b>🌙 Mac-style desktop</b><span>Switch Windows to dark mode and make it look like macOS</span></div>
+        <div class="chip" onclick="useChip(this)"><b>🧹 Tidy Downloads</b><span>Sort my Downloads folder into subfolders by file type</span></div>
+      </div>
+    </div>
+  </div></main>
+  <footer>
+    <div class="composer">
+      <textarea id="input" rows="1" placeholder="Ask OnClick AI to do anything…"></textarea>
+      <select class="lang" id="lang" title="Voice language" onchange="saveLang()"></select>
+      <button class="mic" id="mic" title="Speak (Ctrl+Space)" onclick="toggleMic()">🎙</button>
+      <button class="send" id="send" onclick="sendOrStop()">➤</button>
+    </div>
+    <div class="vbar"><i id="lvl"></i></div>
+    <div class="hint">Asks before paying, sending or deleting · Slam the mouse into a screen corner to emergency-stop</div>
+  </footer>
+</div>
+
+<div class="ov" id="ov-approve"><div class="modal">
+  <h3>⚠️ Approve this step?</h3><p id="ap-reason"></p><pre id="ap-detail"></pre>
+  <div class="row"><button class="btn" onclick="answer(false)">Decline</button><button class="btn danger" onclick="answer(true)">Approve</button></div>
+</div></div>
+
+<div class="ov" id="ov-ask"><div class="modal">
+  <h3>OnClick AI needs something</h3><p id="ask-q"></p>
+  <input id="ask-a" placeholder="Type your answer" onkeydown="if(event.key==='Enter')answer(document.getElementById('ask-a').value)">
+  <div class="row" style="margin-top:14px"><button class="btn" onclick="answer('')">Skip</button><button class="btn pri" onclick="answer(document.getElementById('ask-a').value)">Send</button></div>
+</div></div>
+
+<div class="ov" id="ov-settings"><div class="modal">
+  <h3>Settings</h3>
+  <label>AI provider</label><select id="s-provider" onchange="provNote()"></select>
+  <div class="small" id="s-note"></div>
+  <label>API key</label><input id="s-key" type="password" placeholder="Paste your key">
+  <label>Model (leave blank for default)</label><input id="s-model">
+  <label>Gnani AI API key (voice)</label><input id="s-gkey" type="password" placeholder="From app.gnani.ai → API keys">
+  <div class="small">Speech-to-text by Gnani Prisma v2.5, spoken replies by Gnani Timbre v2.5.</div>
+  <div class="check"><input type="checkbox" id="s-speak"><span>Read answers to voice requests aloud</span></div>
+  <label>Blender path (auto-detected)</label><input id="s-blender">
+  <label>Max steps per task</label><input id="s-steps" type="number" min="5" max="200">
+  <div class="check"><input type="checkbox" id="s-auto"><span>Don't ask before paying, sending or deleting (not recommended)</span></div>
+  <div class="row" style="margin-top:18px"><button class="btn" onclick="closeOv('ov-settings')">Cancel</button><button class="btn pri" onclick="saveSettings()">Save</button></div>
+</div></div>
+
+<div class="ov lightbox" id="ov-img" onclick="closeOv('ov-img')"><img id="lb"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ICON = {browser:'🌐',web:'🔎',fetch:'🔎',run:'⌨️',open:'🚀',read:'📄',write:'💾',list:'📁',ask:'💬',blender:'🧊',screenshot:'🖥️',mouse:'🖱️',type:'⌨️',press:'⌨️',scroll:'↕️',wait:'⏳',windows:'🎨'};
+let busy=false, turn=null, providers={};
+
+function api(){ return window.pywebview && window.pywebview.api; }
+function icon(name){ for(const k in ICON){ if(name.startsWith(k)) return ICON[k]; } return '•'; }
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function scroll(){ const m=$('main'); m.scrollTop=m.scrollHeight; }
+function setBusy(b,text){ busy=b; $('dot').className='dot'+(b?' busy':''); $('status').textContent=text||(b?'Working…':'Ready');
+  $('send').className='send'+(b?' stop':''); $('send').textContent=b?'■':'➤'; }
+
+function addUser(text, tag){
+  $('hero') && $('hero').remove();
+  const d=document.createElement('div'); d.className='msg user'; d.innerHTML=`<div class="bubble">${tag?`<div class="vtag">${esc(tag)}</div>`:''}${esc(text)}</div>`; $('feed').appendChild(d);
+  turn=document.createElement('div'); turn.className='msg ai';
+  turn.innerHTML=`<div class="avatar">O</div><div class="body"><details class="steps" open><summary>⚙️ <span class="cnt">Starting…</span></summary><div class="list"></div></details><div class="out"></div><div class="typing"><span></span><span></span><span></span></div></div>`;
+  $('feed').appendChild(turn); scroll();
+}
+function stepList(){ return turn.querySelector('.list'); }
+function bump(){ const n=stepList().children.length; turn.querySelector('.cnt').textContent=`${n} action${n===1?'':'s'}`; }
+
+let listening=false;
+const VOICE={listening:1,transcribing:1,heard:1,speaking:1,spoken:1};
+function voiceEvent(kind,d){
+  if(kind==='listening'){ listening=true; $('mic').classList.add('on'); setBusy(false,'Listening… speak now'); }
+  else if(kind==='transcribing'){ listening=false; $('mic').classList.remove('on'); $('lvl').style.width='0'; setBusy(true,'Gnani Prisma is transcribing…'); }
+  else if(kind==='heard'){ listening=false; $('mic').classList.remove('on'); $('lvl').style.width='0';
+    if(d.error||!d.text){ setBusy(false, d.error||"Didn't catch that"); return; }
+    addUser(d.text, '🎙 '+(($('lang').selectedOptions[0]||{}).text||'')+' · '+d.latency_ms+' ms'); setBusy(true); }
+  else if(kind==='speaking'){ $('status').textContent='🔊 Speaking (Gnani Timbre)…'; }
+  else if(kind==='spoken'){ if(!busy) $('status').textContent='Ready'; }
+}
+window.onLevel=function(v){ $('lvl').style.width=Math.round(v*100)+'%'; };
+function toggleMic(){ if(busy||listening) return; api().listen($('lang').value).then(r=>{ if(r&&r.error){ alert(r.error); openSettings(); } }); }
+function saveLang(){ api().save_config({voice_language:$('lang').value}); }
+document.addEventListener('keydown',e=>{ if(e.ctrlKey && e.code==='Space'){ e.preventDefault(); toggleMic(); } });
+
+window.onEvent = function(kind, d){
+  if(VOICE[kind]){ voiceEvent(kind,d); return; }
+  if(!turn && kind!=='done') return;
+  if(kind==='thinking'){ setBusy(true,`Working · step ${d.step}`); }
+  else if(kind==='say' && d.text.trim()){ const t=document.createElement('div'); t.className='text'; t.textContent=d.text.trim(); turn.querySelector('.out').appendChild(t); }
+  else if(kind==='tool'){
+    const args=Object.entries(d.args).filter(([k])=>k!=='script').map(([k,v])=>`${k}: ${String(v).slice(0,90)}`).join('  ·  ');
+    const s=document.createElement('div'); s.className='step'; s.innerHTML=`<div class="ic">${icon(d.name)}</div><div><div class="nm">${esc(d.name.replace(/_/g,' '))}</div><div class="rs">${esc(args)}</div></div>`;
+    stepList().appendChild(s); bump();
+  }
+  else if(kind==='result'){
+    const s=stepList().lastElementChild; if(!s) return;
+    const first=(d.text||'').trim().split('\n')[0].slice(0,200);
+    const r=document.createElement('div'); r.className='rs'; r.textContent='→ '+first; s.lastElementChild.appendChild(r);
+    if(d.image){ const im=document.createElement('img'); im.className='shot'; im.src=d.image; im.onclick=()=>{$('lb').src=d.image; $('ov-img').classList.add('show');}; turn.querySelector('.out').appendChild(im); }
+    (d.files||[]).forEach(f=>{ const a=document.createElement('span'); a.className='file'; a.textContent='📎 '+f.split(/[\\/]/).pop(); a.title=f; a.onclick=()=>api().open_path(f); turn.querySelector('.out').appendChild(a); });
+  }
+  else if(kind==='approval'){ const s=stepList().lastElementChild; if(s) s.classList.add('warn'); }
+  else if(kind==='error'){ const t=document.createElement('div'); t.className='text err'; t.textContent='⚠ '+d.text; turn.querySelector('.out').appendChild(t); }
+  else if(kind==='done'){
+    setBusy(false);
+    if(turn){ const ty=turn.querySelector('.typing'); ty&&ty.remove(); const st=turn.querySelector('.steps'); if(st && stepList().children.length===0) st.remove(); else if(st) st.open=false;
+      const ok=document.createElement('div'); ok.className='done'; ok.textContent='✓ Done'; turn.querySelector('.out').appendChild(ok); }
+    turn=null;
+  }
+  scroll();
+};
+
+// modal prompts from Python
+let pending=null;
+window.askApproval=function(reason, detail){ $('ap-reason').textContent=reason; $('ap-detail').textContent=detail; pending='approve'; $('ov-approve').classList.add('show'); };
+window.askUser=function(q){ $('ask-q').textContent=q; $('ask-a').value=''; pending='ask'; $('ov-ask').classList.add('show'); setTimeout(()=>$('ask-a').focus(),50); };
+function answer(v){ closeOv(pending==='approve'?'ov-approve':'ov-ask'); pending=null; api().answer(v); }
+function closeOv(id){ $(id).classList.remove('show'); }
+
+function sendOrStop(){
+  if(busy){ api().stop(); setBusy(true,'Stopping…'); return; }
+  const t=$('input').value.trim(); if(!t) return;
+  $('input').value=''; autosize();
+  api().submit(t).then(r=>{ if(r==='needs_key'){ openSettings(); return; } });
+  addUser(t); setBusy(true);
+}
+function useChip(el){ $('input').value=el.querySelector('span').textContent; autosize(); $('input').focus(); }
+function newChat(){ if(busy) return; api().new_chat(); $('feed').innerHTML=''; location.reload(); }
+function autosize(){ const t=$('input'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,180)+'px'; }
+$('input').addEventListener('input',autosize);
+$('input').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendOrStop(); } });
+
+async function openSettings(){
+  const c=await api().get_config(); providers=c.providers;
+  $('s-provider').innerHTML=Object.keys(providers).map(p=>`<option ${p===c.provider?'selected':''}>${p}</option>`).join('');
+  $('s-key').value=c.api_key; $('s-model').value=c.model; $('s-blender').value=c.blender_path; $('s-steps').value=c.max_steps; $('s-auto').checked=c.auto_approve_risky; $('s-gkey').value=c.gnani_api_key||''; $('s-speak').checked=c.speak_replies;
+  provNote(); $('ov-settings').classList.add('show');
+}
+function provNote(){ const p=providers[$('s-provider').value]||{}; $('s-note').textContent=`Default model ${p.model||''} · ${p.note||''}`; }
+async function saveSettings(){
+  await api().save_config({provider:$('s-provider').value, api_key:$('s-key').value.trim(), model:$('s-model').value.trim(),
+    blender_path:$('s-blender').value.trim(), max_steps:parseInt($('s-steps').value||'40'), auto_approve_risky:$('s-auto').checked, gnani_api_key:$('s-gkey').value.trim(), speak_replies:$('s-speak').checked});
+  closeOv('ov-settings');
+}
+window.addEventListener('pywebviewready', async ()=>{ const c=await api().get_config();
+  const L=await api().languages(); $('lang').innerHTML=Object.entries(L).map(([k,v])=>`<option value="${k}" ${k===c.voice_language?'selected':''}>${v}</option>`).join(''); if(!c.ready) openSettings(); $('input').focus(); });
+</script>
+</body>
+</html>
