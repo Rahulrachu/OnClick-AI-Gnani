@@ -31,4 +31,4 @@ Example: say "ನೋಟ್‌ಪ್ಯಾಡ್ ತೆರೆಯಿರಿ" or "No
 It makes computers usable by voice for people who prefer Indian languages, and that is the "Bharat-first" AI Gnani builds for.
 
 ## Code
-Branch `gnani-challenge` of github.com/Rahulrachu/onclick-ai · Voice layer in `onclick/voice/`.
+https://github.com/Rahulrachu/OnClick-AI-Gnani · Voice layer in `onclick/voice/` · Demo in `demo/`.
