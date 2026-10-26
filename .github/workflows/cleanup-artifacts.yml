@@ -1,0 +1,21 @@
+name: Clean up old artifacts
+on:
+  workflow_dispatch:
+permissions:
+  actions: write
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const arts = await github.paginate(github.rest.actions.listArtifactsForRepo, { owner, repo, per_page: 100 });
+            let bytes = 0;
+            for (const a of arts) {
+              await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+              bytes += a.size_in_bytes;
+              core.info(`Deleted ${a.name} (${a.size_in_bytes} bytes)`);
+            }
+            core.info(`Deleted ${arts.length} artifacts, ${(bytes/1048576).toFixed(1)} MB`);
