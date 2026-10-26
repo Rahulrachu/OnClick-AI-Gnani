@@ -1,0 +1,113 @@
+name: Build Windows exe
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests pytest numpy
+      - run: python -m pytest -q
+
+  blender-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests pillow
+      - name: Get Blender 4.2 LTS
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6
+          curl -sL https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz | tar xJ
+      - name: Build and render a house through the agent's Blender tool
+        run: BLENDER=$PWD/blender-4.2.3-linux-x64/blender PYTHONPATH=. python tests/smoke/blender_house.py
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true  # artifacts are a convenience; the release is what ships, so a full artifact quota must not fail the build
+        if: always()
+        with:
+          retention-days: 3
+          name: blender-smoke-render
+          path: smoke-out/blender/
+
+  ui-screenshots:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install playwright pillow && python -m playwright install --with-deps chromium
+      - run: python tests/smoke/ui_screenshot.py
+      - name: Commit screenshots
+        run: |
+          git config user.name "OnClick AI Bot"; git config user.email "bot@onclick.local"
+          git add docs/*.png
+          git diff --cached --quiet || (git commit -m "Update UI screenshots [skip ci]" && git push)
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Build OnClickAI.exe (window) and OnClickAI-cli.exe (terminal)
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name OnClickAI --collect-all playwright --collect-all webview --collect-all sounddevice --hidden-import _sounddevice_data --add-data "onclick/ui;onclick/ui" run.py
+          pyinstaller --noconfirm --onefile --console --name OnClickAI-cli --collect-all playwright --collect-all webview --collect-all sounddevice --hidden-import _sounddevice_data --add-data "onclick/ui;onclick/ui" run.py
+      - name: Smoke test
+        shell: pwsh
+        run: dist\OnClickAI-cli.exe --help
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true  # artifacts are a convenience; the release is what ships, so a full artifact quota must not fail the build
+        with:
+          retention-days: 3
+          name: OnClickAI-windows
+          path: dist/*.exe
+      - name: Publish release (latest)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Latest build' }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          make_latest: true
+          files: dist/*.exe
+
+  report-failure:
+    # Writes the latest failure's log tail into the body of the "CI failures" issue so it can be read without opening the Actions UI.
+    needs: [test, blender-smoke, build]
+    if: failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post failed log tail
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.run_id }}
+        run: |
+          : > failed.log
+          for job in $(gh api "repos/$REPO/actions/runs/$RUN/jobs" -q '.jobs[] | select(.conclusion=="failure") | .id'); do
+            gh api "repos/$REPO/actions/jobs/$job" -q '"===== job: \(.name) =====", (.steps[] | select(.conclusion=="failure") | "failed step: \(.name)")' >> failed.log
+            curl -sSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/actions/jobs/$job/logs" -o job.log || echo "(log download failed)" >> failed.log
+            grep -v '^\s*$' job.log | grep -iv 'Warning: ' | tail -n 120 >> failed.log || true
+          done
+          { echo "Run $RUN failed on ${GITHUB_SHA::7}: https://github.com/$REPO/actions/runs/$RUN"; echo; echo '```'; tail -c 60000 failed.log; echo '```'; } > body.md
+          num=$(gh issue list -R "$REPO" --state all --search "CI failures in:title" --json number -q '.[0].number')
+          if [ -z "$num" ]; then gh issue create -R "$REPO" --title "CI failures" --body-file body.md; else gh issue edit "$num" -R "$REPO" --body-file body.md && gh issue reopen "$num" -R "$REPO" || true; fi
