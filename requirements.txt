@@ -1,0 +1,8 @@
+requests>=2.31
+playwright>=1.47
+pyautogui>=0.9.54
+pillow>=10.0
+pyperclip>=1.8
+pywebview>=5.0
+numpy>=1.26
+sounddevice>=0.4.6
